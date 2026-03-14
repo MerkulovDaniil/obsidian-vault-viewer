@@ -74,10 +74,24 @@ python app.py --vault /путь/к/хранилищу
 Можно создать файл `vault-viewer.yml` (или `vault-viewer.yaml`) в рабочей директории:
 
 ```yaml
+# Основное
 vault: /путь/к/хранилищу
 host: 0.0.0.0
 port: 8000
 title: Мои заметки
+
+# Внешний вид
+favicon: https://example.com/icon.png  # или локальный путь
+custom_css: "body { font-size: 18px; }"
+custom_head: '<script src="..."></script>'
+
+# Поведение
+pinch_zoom: true     # разрешить масштабирование на мобиле (по умолчанию: true)
+readonly: false      # запретить редактирование/удаление (по умолчанию: false)
+hide:                # паттерны для скрытия из сайдбара
+  - "_private/**"
+  - "*.tmp"
+  - "drafts/**"
 ```
 
 **Приоритет**: CLI-аргументы > файл конфигурации > переменные окружения > значения по умолчанию.

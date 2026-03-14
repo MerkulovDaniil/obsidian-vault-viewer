@@ -74,10 +74,24 @@ python app.py --vault /path/to/vault
 You can place a `vault-viewer.yml` (or `vault-viewer.yaml`) file in the working directory:
 
 ```yaml
+# Core
 vault: /path/to/vault
 host: 0.0.0.0
 port: 8000
 title: My Vault
+
+# Appearance
+favicon: https://example.com/icon.png  # or local path
+custom_css: "body { font-size: 18px; }"
+custom_head: '<script src="..."></script>'
+
+# Behavior
+pinch_zoom: true     # allow pinch-to-zoom on mobile (default: true)
+readonly: false      # disable edit/delete (default: false)
+hide:                # glob patterns to hide from sidebar
+  - "_private/**"
+  - "*.tmp"
+  - "drafts/**"
 ```
 
 **Priority**: CLI args > config file > environment variables > defaults.

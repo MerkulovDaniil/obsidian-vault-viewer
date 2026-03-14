@@ -21,6 +21,16 @@ HOST = os.environ.get("VAULT_HOST", "0.0.0.0")
 PORT = int(os.environ.get("VAULT_PORT", "8000"))
 APP_TITLE = os.environ.get("VAULT_NAME", "")
 
+# Extended config (loaded from vault-viewer.yml)
+CONFIG = {
+    "favicon": "",          # URL or path to favicon
+    "custom_css": "",       # Extra CSS injected into every page
+    "custom_head": "",      # Extra HTML injected into <head>
+    "hide": [],             # Glob patterns to hide from tree (e.g. ["_private/**", "*.tmp"])
+    "pinch_zoom": True,     # Allow pinch-to-zoom on mobile
+    "readonly": False,      # Disable edit/delete
+}
+
 app = FastAPI(docs_url=None, redoc_url=None)
 
 
@@ -85,6 +95,15 @@ def get_icon_html(rel_path: str, fallback: str = "&#128196;") -> str:
 
 # --- File tree ---
 
+def _is_hidden(rel: str) -> bool:
+    """Check if path matches any hide pattern from config."""
+    import fnmatch
+    for pattern in CONFIG.get("hide", []):
+        if fnmatch.fnmatch(rel, pattern) or fnmatch.fnmatch(Path(rel).name, pattern):
+            return True
+    return False
+
+
 def get_file_tree(root: Path) -> list[dict]:
     items = []
     try:
@@ -95,6 +114,8 @@ def get_file_tree(root: Path) -> list[dict]:
         if entry.name.startswith("."):
             continue
         rel = str(entry.relative_to(VAULT_ROOT))
+        if _is_hidden(rel):
+            continue
         if entry.is_dir():
             children = get_file_tree(entry)
             if children:
@@ -674,21 +695,33 @@ def layout(title: str, content: str, current_path: str = "", toast: str = "") ->
         if not Path(current_path).suffix == "" and current_path:
             ext = Path(current_path).suffix.lower()
             if ext in (".md", ".txt", ".yaml", ".yml", ".json", ".csv", ".base"):
-                edit_actions = f'<a class="topbar-btn" href="/edit/{current_path}" title="Edit"><i data-lucide="pencil" style="width:14px;height:14px"></i></a><a class="topbar-btn" href="/raw/{current_path}" title="Raw"><i data-lucide="file-code" style="width:14px;height:14px"></i></a>'
+                raw_btn = f'<a class="topbar-btn" href="/raw/{current_path}" title="Raw"><i data-lucide="file-code" style="width:14px;height:14px"></i></a>'
+                if CONFIG.get("readonly"):
+                    edit_actions = raw_btn
+                else:
+                    edit_actions = f'<a class="topbar-btn" href="/edit/{current_path}" title="Edit"><i data-lucide="pencil" style="width:14px;height:14px"></i></a>{raw_btn}'
 
     toast_html = f'<div class="toast">{toast}</div>' if toast else ""
+
+    viewport = "width=device-width, initial-scale=1.0" if CONFIG.get("pinch_zoom", True) else "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    favicon_html = f'<link rel="icon" href="{CONFIG["favicon"]}">' if CONFIG.get("favicon") else ""
+    custom_css = f'<style>{CONFIG["custom_css"]}</style>' if CONFIG.get("custom_css") else ""
+    custom_head = CONFIG.get("custom_head", "")
 
     return HTMLResponse(f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="{viewport}">
 <title>{title} — {APP_TITLE}</title>
+{favicon_html}
 <style>{CSS}</style>
+{custom_css}
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+{custom_head}
 </head>
 <body>
 <div class="overlay"></div>
@@ -1109,6 +1142,11 @@ def _apply_config(strict: bool = False):
         PORT = int(cfg["port"])
     if APP_TITLE == env_title and "title" in cfg:
         APP_TITLE = str(cfg["title"])
+
+    # Extended config keys
+    for key in CONFIG:
+        if key in cfg:
+            CONFIG[key] = cfg[key]
 
     VAULT_ROOT = VAULT_ROOT.resolve()
     if not VAULT_ROOT.is_dir():
