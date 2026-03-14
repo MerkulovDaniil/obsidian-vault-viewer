@@ -110,9 +110,11 @@ body {
 
 /* === Cover + Icon (notion4ever style) === */
 .cover {
-    max-height: 200px; overflow: hidden;
     width: 100vw;
-    margin-left: calc(-50vw + 50%);
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 0;
 }
 .cover img { width: 100%; height: 200px; object-fit: cover; display: block; }
 .page-icon {
@@ -372,7 +374,7 @@ body {
     .overlay.open { display: block; }
     .main-wrapper { margin-left: 0; }
     .main { padding: 10px 14px 30px; max-width: 100vw; width: 100%; }
-    .cover { max-height: 140px; }
+    .cover { width: 100vw; left: 50%; transform: translateX(-50%); }
     .cover img { height: 140px; }
     .page-icon { font-size: 56px; line-height: 56px; margin-top: -30px; }
     .page-icon .lucide-icon { width: 52px; height: 52px; }

@@ -342,11 +342,10 @@ def get_page_parts(meta: dict, file_path: str = "") -> dict:
                 result["cover"] = f'<div class="cover"><img src="{url}" alt="" loading="lazy"></div>'
                 break
 
-    # Icon from Iconic plugin
-    if file_path:
+    # Icon from Iconic plugin (only if file actually has an icon assigned)
+    if file_path and get_raw_icon(file_path):
         icon_html = get_icon_html(file_path, "")
-        if icon_html:
-            result["icon"] = f'<div class="page-icon">{icon_html}</div>'
+        result["icon"] = f'<div class="page-icon">{icon_html}</div>'
 
     # Badges
     badges = []
@@ -1002,7 +1001,7 @@ async def view_file(file_path: str, toast: str = "", tab: int = 0):
 
     title = fp.stem
     has_cover = bool(parts["cover"])
-    has_icon = bool(parts["icon"])
+    has_icon = bool(get_raw_icon(file_path))
     cls = []
     if not has_cover:
         cls.append("no-cover")
@@ -1015,8 +1014,8 @@ async def view_file(file_path: str, toast: str = "", tab: int = 0):
     md_html = render_md(post.content)
 
     content = (
-        f'<div class="{wrapper_cls}">'
         f'{parts["cover"]}'
+        f'<div class="{wrapper_cls}">'
         f'{parts["icon"]}'
         f'{page_title}'
         f'{parts["badges"]}'
