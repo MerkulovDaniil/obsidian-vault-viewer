@@ -75,6 +75,12 @@ def load_icons() -> dict:
     return _icon_cache
 
 
+def get_raw_icon(rel_path: str) -> str:
+    """Get raw icon value (emoji or lucide-name) for a vault path."""
+    icons = load_icons()
+    return icons.get(rel_path, {}).get("icon", "")
+
+
 def get_icon_html(rel_path: str, fallback: str = "&#128196;") -> str:
     """Get icon HTML for a vault path. Supports emoji and lucide icons."""
     icons = load_icons()
@@ -675,7 +681,7 @@ def build_tree_html(items: list[dict], depth: int = 0, current_path: str = "") -
     return html
 
 
-def layout(title: str, content: str, current_path: str = "", toast: str = "") -> HTMLResponse:
+def layout(title: str, content: str, current_path: str = "", toast: str = "", page_icon: str = "") -> HTMLResponse:
     tree = get_file_tree(VAULT_ROOT)
     tree_html = build_tree_html(tree, current_path=current_path)
 
@@ -704,7 +710,14 @@ def layout(title: str, content: str, current_path: str = "", toast: str = "") ->
     toast_html = f'<div class="toast">{toast}</div>' if toast else ""
 
     viewport = "width=device-width, initial-scale=1.0" if CONFIG.get("pinch_zoom", True) else "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-    favicon_html = f'<link rel="icon" href="{CONFIG["favicon"]}">' if CONFIG.get("favicon") else ""
+    # Favicon: page icon (emoji) > config favicon > default
+    favicon_html = ""
+    if page_icon and not page_icon.startswith("lucide-"):
+        # Emoji → SVG data URI (notion4ever trick)
+        emoji = page_icon
+        favicon_html = f'<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>{emoji}</text></svg>">'
+    elif CONFIG.get("favicon"):
+        favicon_html = f'<link rel="icon" href="{CONFIG["favicon"]}">'
     custom_css = f'<style>{CONFIG["custom_css"]}</style>' if CONFIG.get("custom_css") else ""
     custom_head = CONFIG.get("custom_head", "")
 
@@ -987,16 +1000,21 @@ async def view_file(file_path: str, toast: str = "", tab: int = 0):
 
     title = fp.stem
     has_cover = bool(parts["cover"])
-    no_cover_cls = "" if has_cover else "no-cover"
+    has_icon = bool(parts["icon"])
+    cls = []
+    if not has_cover:
+        cls.append("no-cover")
+    if has_icon:
+        cls.append("has-icon")
+    wrapper_cls = " ".join(cls)
 
-    # Notion4ever layout: cover → icon (overlapping) → title → badges → props → content
     page_title = f'<h1 style="font-size:2em;font-weight:700;margin:0 0 0.3em;font-family:var(--font)">{_escape(title)}</h1>'
 
     md_html = render_md(post.content)
 
     content = (
+        f'<div class="{wrapper_cls}">'
         f'{parts["cover"]}'
-        f'<div class="{no_cover_cls}">'
         f'{parts["icon"]}'
         f'{page_title}'
         f'{parts["badges"]}'
@@ -1004,7 +1022,8 @@ async def view_file(file_path: str, toast: str = "", tab: int = 0):
         f'</div>'
         f'<div class="md">{md_html}</div>'
     )
-    return layout(fp.name, content, file_path, toast=toast)
+    raw_icon = get_raw_icon(file_path)
+    return layout(fp.name, content, file_path, toast=toast, page_icon=raw_icon)
 
 
 @app.get("/edit/{file_path:path}", response_class=HTMLResponse)
