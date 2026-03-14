@@ -718,6 +718,8 @@ def layout(title: str, content: str, current_path: str = "", toast: str = "", pa
         favicon_html = f'<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>{emoji}</text></svg>">'
     elif CONFIG.get("favicon"):
         favicon_html = f'<link rel="icon" href="{CONFIG["favicon"]}">'
+    else:
+        favicon_html = '<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>">'
     custom_css = f'<style>{CONFIG["custom_css"]}</style>' if CONFIG.get("custom_css") else ""
     custom_head = CONFIG.get("custom_head", "")
 

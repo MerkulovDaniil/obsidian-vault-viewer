@@ -111,13 +111,10 @@ body {
 /* === Cover + Icon (notion4ever style) === */
 .cover {
     max-height: 200px; overflow: hidden;
-    width: 100vw; position: relative;
-    left: 50%; right: 50%;
-    margin-left: -50vw; margin-right: -50vw;
-    margin-bottom: 16px;
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
 }
 .cover img { width: 100%; height: 200px; object-fit: cover; display: block; }
-.has-icon .cover { margin-bottom: 0; }
 .page-icon {
     font-size: 78px; line-height: 78px;
     margin-top: -42px; margin-bottom: 4px;
