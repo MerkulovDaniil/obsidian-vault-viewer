@@ -28,7 +28,62 @@ CONFIG = {
     "hide": [],             # Glob patterns to hide from tree (e.g. ["_private/**", "*.tmp"])
     "pinch_zoom": True,     # Allow pinch-to-zoom on mobile
     "readonly": False,      # Disable edit/delete
+    "theme": "",            # Obsidian community theme name (e.g. "Things", "Dracula")
 }
+
+# --- Theme loading ---
+import urllib.request
+
+_THEMES_INDEX_URL = "https://raw.githubusercontent.com/obsidianmd/obsidian-releases/master/community-css-themes.json"
+_theme_css_cache: str = ""
+
+
+def _load_theme(name: str) -> str:
+    """Fetch Obsidian community theme CSS by name. Cached after first load."""
+    global _theme_css_cache
+    if _theme_css_cache:
+        return _theme_css_cache
+    if not name:
+        return ""
+    # Cache dir
+    cache_dir = Path.home() / ".cache" / "silmaril" / "themes"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_file = cache_dir / f"{name.lower().replace(' ', '-')}.css"
+    if cache_file.exists():
+        _theme_css_cache = cache_file.read_text(encoding="utf-8")
+        return _theme_css_cache
+    # Fetch themes index
+    try:
+        with urllib.request.urlopen(_THEMES_INDEX_URL, timeout=10) as r:
+            themes = json.loads(r.read())
+    except Exception as e:
+        print(f"Warning: could not fetch themes index: {e}")
+        return ""
+    # Find theme by name (case-insensitive)
+    repo = None
+    nl = name.lower()
+    for t in themes:
+        if t["name"].lower() == nl:
+            repo = t["repo"]
+            break
+    if not repo:
+        print(f"Warning: theme '{name}' not found in Obsidian community themes")
+        return ""
+    # Fetch theme.css or obsidian.css from repo
+    for branch in ("main", "master"):
+        for fname in ("theme.css", "obsidian.css"):
+            url = f"https://raw.githubusercontent.com/{repo}/{branch}/{fname}"
+            try:
+                with urllib.request.urlopen(url, timeout=10) as r:
+                    css = r.read().decode("utf-8")
+                cache_file.write_text(css, encoding="utf-8")
+                _theme_css_cache = css
+                print(f"Theme '{name}' loaded from {repo}/{fname} ({len(css)} bytes)")
+                return css
+            except Exception:
+                continue
+    print(f"Warning: could not fetch theme from {repo}")
+    return ""
 
 app = FastAPI(docs_url=None, redoc_url=None)
 
@@ -800,6 +855,8 @@ def layout(title: str, content: str, current_path: str = "", toast: str = "", pa
         favicon_html = f'<link rel="icon" href="{CONFIG["favicon"]}">'
     else:
         favicon_html = '<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>">'
+    theme_css = _load_theme(CONFIG.get("theme", ""))
+    theme_style = f"<style>{theme_css}</style>" if theme_css else ""
     custom_css = f'<style>{CONFIG["custom_css"]}</style>' if CONFIG.get("custom_css") else ""
     custom_head = CONFIG.get("custom_head", "")
 
@@ -811,6 +868,7 @@ def layout(title: str, content: str, current_path: str = "", toast: str = "", pa
 <title>{title} — {APP_TITLE}</title>
 {favicon_html}
 <style>{CSS}</style>
+{theme_style}
 {custom_css}
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
