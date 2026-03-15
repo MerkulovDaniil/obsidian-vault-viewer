@@ -4,12 +4,10 @@ A self-hosted, mobile-first web UI for browsing and editing Obsidian vaults from
 
 ```mermaid
 graph LR
-    V[("📂 Your Vault")]
-    S{{"⚡ vault-viewer"}}
-    V --- S
-    S -->|browse| P["📱 Phone"]
-    S -->|search| T["🖥 Desktop"]
-    S -->|edit| L["💻 Laptop"]
+    V[("📂 Your Vault")] --- S{{"⚡ vault-viewer"}}
+    S <-->|browse| P["📱 Phone"]
+    S <-->|search| D["🖥️ Desktop"]
+    S <-->|edit| L["💻 Laptop"]
 ```
 
 > **Your vault stays in one place. You access it from anywhere.**
@@ -145,10 +143,6 @@ CMD ["vault-viewer", "--vault", "/vault"]
 ```bash
 docker run -v /path/to/vault:/vault -p 8000:8000 vault-viewer
 ```
-
-## Russian / Русский
-
-See [README_RU.md](README_RU.md) for documentation in Russian.
 
 ## License
 
