@@ -40,6 +40,8 @@ Open `http://localhost:8000` — done.
 ## Explore
 
 - [[Features]] — what Silmaril renders
+- [[Basic formatting syntax]] — headings, lists, links, images, code
+- [[Advanced formatting syntax]] — tables, footnotes, math, diagrams
 - [[Configuration]] — CLI args, config file, environment variables
 - [[Deployment]] — systemd, Docker, cloud
 - [[Icon Editing]] — native icon picker for Obsidian Iconic plugin
