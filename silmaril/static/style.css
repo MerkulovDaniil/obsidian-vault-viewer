@@ -141,7 +141,7 @@ body {
     position: relative;
     left: 50%;
     transform: translateX(-50%);
-    margin-bottom: 0;
+    margin-top: -32px; margin-bottom: 0;
 }
 .cover img { width: 100%; height: 200px; object-fit: cover; display: block; }
 .cover + .page-icon {
@@ -151,7 +151,7 @@ body {
     font-size: 78px; line-height: 1;
     margin-bottom: 4px;
     position: relative; z-index: 1;
-    display: flow-root;
+    width: fit-content;
 }
 .page-icon .lucide-icon { width: 72px; height: 72px; }
 .page-icon img { width: 78px; height: 78px; object-fit: cover; border-radius: 8px; }
