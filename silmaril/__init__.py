@@ -579,10 +579,26 @@ def _eval_filter(condition: str, meta: dict, fp: Path) -> bool:
             return target in actual
         return str(actual) == str(target)
 
-    # property != value
-    m = re.match(r'(\w+)\s*!=\s*"(.+?)"', condition)
+    # property != value  (e.g. status != "done", status != ["archived"])
+    m = re.match(r'(\w+)\s*!=\s*(.+)', condition)
     if m:
-        return str(meta.get(m.group(1), "")) != m.group(2)
+        key, val_str = m.group(1), m.group(2).strip()
+        actual = meta.get(key, "")
+        if val_str.startswith('"') and val_str.endswith('"'):
+            target = val_str.strip('"')
+        elif val_str.startswith('['):
+            try:
+                target = yaml.safe_load(val_str)
+            except Exception:
+                target = val_str
+        else:
+            target = val_str
+
+        if isinstance(actual, list) and isinstance(target, list):
+            return not any(t in actual for t in target)
+        if isinstance(actual, list):
+            return target not in actual
+        return str(actual) != str(target)
 
     return True  # unknown filter → pass
 
@@ -659,10 +675,20 @@ def _render_card_field(e: dict, field: str) -> str:
 
 
 def render_base_cards(entries: list[dict], image_field: str = "", aspect: float = 0.5,
-                      fields: list[str] = None) -> str:
+                      fields: list[str] = None, card_size: str = "",
+                      image_fit: str = "cover") -> str:
     """Render entries as gallery cards with fields from .base order."""
     if not fields:
         fields = ["tags", "status"]
+
+    # Card size → grid column minmax
+    size_map = {"small": "160px", "medium": "200px", "large": "280px"}
+    min_w = size_map.get(card_size, "200px")
+    grid_style = f"grid-template-columns:repeat(auto-fill,minmax({min_w},1fr))"
+
+    # Image fit: cover (crop) or contain (no crop)
+    fit = "contain" if image_fit == "contain" else "cover"
+
     cards = ""
     for e in entries:
         cover = e["cover"]
@@ -673,7 +699,7 @@ def render_base_cards(entries: list[dict], image_field: str = "", aspect: float 
 
         if cover:
             ar_style = f"aspect-ratio:{1/aspect:.2f}" if aspect else "aspect-ratio:2"
-            cover_html = f'<div class="card-cover" style="{ar_style}"><img src="{cover}" loading="lazy"></div>'
+            cover_html = f'<div class="card-cover" style="{ar_style}"><img src="{cover}" loading="lazy" style="object-fit:{fit}"></div>'
         else:
             cover_html = '<div class="card-cover card-cover-empty"><span>&#128196;</span></div>'
 
@@ -685,20 +711,35 @@ def render_base_cards(entries: list[dict], image_field: str = "", aspect: float 
 
         card_icon = get_icon_html(e["path"], "")
         cards += f'<div class="card"><a href="/{e["path"]}">{cover_html}<div class="card-body"><div class="card-title">{card_icon}{_escape(e["name"])}</div>{meta_html}</div></a></div>'
-    return f'<div class="gallery">{cards}</div>'
+    return f'<div class="gallery" style="{grid_style}">{cards}</div>'
 
 
-def render_base_table(entries: list[dict], columns: list[str] = None) -> str:
+def render_base_table(entries: list[dict], columns: list[str] = None,
+                      row_height: str = "", column_sizes: dict = None,
+                      show_summary: bool = False) -> str:
     """Render entries as a table with specified columns."""
     if not columns:
         columns = ["status", "tags"]
     # Clean column names
     cols = [c.replace("file.", "").replace("note.", "") for c in columns if c != "file.name"]
 
-    ths = '<th>Name</th>' + "".join(f'<th>{_escape(c)}</th>' for c in cols)
+    # Row height → CSS padding
+    rh_map = {"short": "3px 10px", "medium": "6px 10px", "tall": "12px 10px", "extra-tall": "20px 10px"}
+    row_pad = rh_map.get(row_height, "6px 10px")
+
+    # Column widths from columnSize config
+    col_sizes = column_sizes or {}
+
+    ths = '<th>Name</th>'
+    for c in cols:
+        w_style = ""
+        if c in col_sizes:
+            w_style = f' style="width:{int(col_sizes[c])}px"'
+        ths += f'<th{w_style}>{_escape(c)}</th>'
+
     trs = ""
     for e in entries:
-        tds = f'<td><a href="/{e["path"]}">{_escape(e["name"])}</a></td>'
+        tds = f'<td style="padding:{row_pad}"><a href="/{e["path"]}">{_escape(e["name"])}</a></td>'
         for c in cols:
             if c == "status":
                 cell = "".join(f'<span class="badge badge-{status_color(str(s))}">{s}</span>' for s in e["status"])
@@ -707,9 +748,42 @@ def render_base_table(entries: list[dict], columns: list[str] = None) -> str:
             else:
                 val = e["meta"].get(c, "")
                 cell = _escape(str(val))[:150]
-            tds += f'<td>{cell}</td>'
+            tds += f'<td style="padding:{row_pad}">{cell}</td>'
         trs += f'<tr>{tds}</tr>'
-    return f'<div class="table-wrap"><table class="db-table"><thead><tr>{ths}</tr></thead><tbody>{trs}</tbody></table></div>'
+
+    summary_html = ""
+    if show_summary:
+        summary_html = f'<tfoot><tr><td colspan="{len(cols)+1}" style="padding:6px 10px;font-size:12px;color:var(--text2);border-top:2px solid var(--border)">Count: {len(entries)}</td></tr></tfoot>'
+
+    return f'<div class="table-wrap"><table class="db-table"><thead><tr>{ths}</tr></thead><tbody>{trs}</tbody>{summary_html}</table></div>'
+
+
+def render_base_list(entries: list[dict], fields: list[str] = None) -> str:
+    """Render entries as a simple bulleted list."""
+    if not fields:
+        fields = ["status", "tags"]
+    rows = ""
+    for e in entries:
+        meta_parts = []
+        for field in fields:
+            prop = field.replace("file.", "").replace("note.", "")
+            if prop in ("name", "file.name"):
+                continue
+            if prop == "status" and e["status"]:
+                meta_parts.append("".join(
+                    f'<span class="badge badge-{status_color(str(s))}">{s}</span>'
+                    for s in e["status"][:2]
+                ))
+            elif prop in ("tags", "tag") and e["tags"]:
+                meta_parts.append("".join(f'<span class="tag">{t}</span>' for t in e["tags"][:3]))
+            else:
+                val = e["meta"].get(prop, "")
+                if val:
+                    meta_parts.append(f'<span class="card-prop">{_escape(str(val)[:80])}</span>')
+
+        meta_html = f' <span class="db-row-tags">{" ".join(meta_parts)}</span>' if meta_parts else ""
+        rows += f'<a class="db-row" href="/{e["path"]}"><div class="db-row-title">{_escape(e["name"])}</div>{meta_html}</a>'
+    return f'<div class="db-list">{rows}</div>'
 
 
 # --- Canvas renderer ---
@@ -977,6 +1051,27 @@ async def index():
     return layout(APP_TITLE, content)
 
 
+def _group_entries(entries: list[dict], group_by: dict) -> list[tuple[str, list[dict]]]:
+    """Group entries by a property. Returns list of (group_label, entries) tuples."""
+    prop = group_by.get("property", "").replace("file.", "").replace("note.", "")
+    desc = group_by.get("direction", "ASC").upper() == "DESC"
+    if not prop:
+        return [("", entries)]
+
+    groups: dict[str, list[dict]] = {}
+    for e in entries:
+        val = e["meta"].get(prop, "")
+        if isinstance(val, list):
+            keys = [str(v) for v in val] if val else ["(empty)"]
+        else:
+            keys = [str(val) if val else "(empty)"]
+        for k in keys:
+            groups.setdefault(k, []).append(e)
+
+    sorted_keys = sorted(groups.keys(), key=str.lower, reverse=desc)
+    return [(k, groups[k]) for k in sorted_keys]
+
+
 def render_base_view(fp: Path, file_path: str, active_tab: int = 0) -> HTMLResponse:
     """Render an Obsidian .base file with tabs and filtered views."""
     base = parse_base_file(fp)
@@ -1004,6 +1099,15 @@ def render_base_view(fp: Path, file_path: str, active_tab: int = 0) -> HTMLRespo
     aspect = view.get("imageAspectRatio", 0.5)
     columns = view.get("order", [])
 
+    # New settings
+    card_size = view.get("cardSize", "")
+    image_fit = view.get("imageFit", "cover")
+    row_height = view.get("rowHeight", "")
+    column_sizes = view.get("columnSize", {})
+    limit = view.get("limit", 0)
+    group_by = view.get("groupBy", {})
+    summaries = view.get("summaries", False)
+
     entries = collect_base_entries(global_filters, view_filters)
 
     # Sort
@@ -1016,14 +1120,37 @@ def render_base_view(fp: Path, file_path: str, active_tab: int = 0) -> HTMLRespo
         elif prop:
             entries.sort(key=lambda e: str(e["meta"].get(prop, "")).lower(), reverse=desc)
 
+    total_count = len(entries)
+
+    # Apply limit
+    if limit and limit > 0:
+        entries = entries[:limit]
+
     title = fp.stem
     header = f'<h2 style="font-size:22px;font-weight:700;margin-bottom:4px">{_escape(title)}</h2>'
-    info = f'<div class="filter-info" style="margin-bottom:12px">{len(entries)} items</div>'
+    limit_note = f" (showing {len(entries)})" if limit and limit < total_count else ""
+    info = f'<div class="filter-info" style="margin-bottom:12px">{total_count} items{limit_note}</div>'
 
-    if view_type == "cards":
-        body = render_base_cards(entries, image_field, aspect, fields=columns)
+    def _render_view_body(view_entries: list[dict]) -> str:
+        if view_type == "cards":
+            return render_base_cards(view_entries, image_field, aspect, fields=columns,
+                                     card_size=card_size, image_fit=image_fit)
+        elif view_type == "list":
+            return render_base_list(view_entries, fields=columns)
+        else:
+            return render_base_table(view_entries, columns, row_height=row_height,
+                                      column_sizes=column_sizes,
+                                      show_summary=bool(summaries))
+
+    # GroupBy
+    if group_by and group_by.get("property"):
+        groups = _group_entries(entries, group_by)
+        body = ""
+        for label, group_entries in groups:
+            body += f'<h3 style="font-size:15px;font-weight:600;margin:18px 0 8px;color:var(--text2)">{_escape(label)} <span style="font-weight:400;font-size:12px">({len(group_entries)})</span></h3>'
+            body += _render_view_body(group_entries)
     else:
-        body = render_base_table(entries, columns)
+        body = _render_view_body(entries)
 
     content = header + tabs_html + info + body
     return layout(f"{title} — Base", content, file_path)
