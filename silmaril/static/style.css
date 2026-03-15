@@ -225,13 +225,15 @@ body {
     margin-bottom: 4px; display: flex; align-items: center; gap: 6px;
     color: rgb(var(--callout-color));
 }
+.callout-icon { display: flex; align-items: center; flex-shrink: 0; }
 .callout-lucide { width: 18px; height: 18px; flex-shrink: 0; stroke: rgb(var(--callout-color)); }
+.callout-title-inner { flex: 1; }
 .callout-fold { width: 18px; height: 18px; flex-shrink: 0; margin-left: auto; stroke: rgb(var(--callout-color)); transition: transform 0.15s; }
 details.callout > summary { cursor: pointer; list-style: none; }
 details.callout > summary::-webkit-details-marker { display: none; }
 details.callout[open] .callout-fold { transform: rotate(90deg); }
-.callout-body { font-size: 14px; }
-.callout-body p { margin: 3px 0; }
+.callout-content { font-size: 14px; }
+.callout-content p { margin: 3px 0; }
 
 /* === Footnotes === */
 .footnote { vertical-align: super; font-size: 0.8em; text-decoration: none; }

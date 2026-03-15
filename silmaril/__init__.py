@@ -322,22 +322,23 @@ def render_callouts(text: str) -> str:
         if not in_c:
             return
         meta = CALLOUT_META.get(c_type.lower(), ("pencil", "8, 109, 221"))
-        icon_html = f'<i data-lucide="{meta[0]}" class="callout-lucide"></i>'
+        icon_html = f'<span class="callout-icon"><i data-lucide="{meta[0]}" class="callout-lucide"></i></span>'
         color = meta[1]
+        ct = c_type.lower()
+        title_inner = f'<span class="callout-title-inner">{c_title or c_type.capitalize()}</span>'
         bhtml = markdown.markdown("\n".join(body), extensions=['tables', 'fenced_code', 'sane_lists'])
         if c_fold:
-            # Foldable callout
             open_attr = " open" if c_fold == "+" else ""
             result.append(
-                f'<details class="callout" style="--callout-color: {color};"{open_attr}>'
-                f'<summary class="callout-title">{icon_html} {c_title or c_type.capitalize()}'
+                f'<details class="callout" data-callout="{ct}" style="--callout-color: {color};"{open_attr}>'
+                f'<summary class="callout-title">{icon_html}{title_inner}'
                 f'<i data-lucide="chevron-right" class="callout-fold"></i></summary>'
-                f'<div class="callout-body">{bhtml}</div></details>')
+                f'<div class="callout-content">{bhtml}</div></details>')
         else:
             result.append(
-                f'<div class="callout" style="--callout-color: {color};">'
-                f'<div class="callout-title">{icon_html} {c_title or c_type.capitalize()}</div>'
-                f'<div class="callout-body">{bhtml}</div></div>')
+                f'<div class="callout" data-callout="{ct}" style="--callout-color: {color};">'
+                f'<div class="callout-title">{icon_html}{title_inner}</div>'
+                f'<div class="callout-content">{bhtml}</div></div>')
         in_c = False
         body = []
 
