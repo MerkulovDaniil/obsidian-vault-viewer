@@ -1,6 +1,5 @@
 """
-Obsidian Vault Viewer — self-hosted, mobile-first web UI.
-Notion4ever-inspired design. Cards/list/table database views.
+Silmaril — self-hosted, mobile-first web UI for Obsidian vaults.
 """
 
 import os
@@ -21,7 +20,7 @@ HOST = os.environ.get("VAULT_HOST", "0.0.0.0")
 PORT = int(os.environ.get("VAULT_PORT", "8000"))
 APP_TITLE = os.environ.get("VAULT_NAME", "")
 
-# Extended config (loaded from vault-viewer.yml)
+# Extended config (loaded from silmaril.yml or vault-viewer.yml)
 CONFIG = {
     "favicon": "",          # URL or path to favicon
     "custom_css": "",       # Extra CSS injected into every page
@@ -1206,8 +1205,8 @@ async def clean_view(file_path: str, toast: str = "", tab: int = 0,
 
 
 def _load_config_file() -> dict:
-    """Load vault-viewer.yml / vault-viewer.yaml from current directory."""
-    for name in ("vault-viewer.yml", "vault-viewer.yaml"):
+    """Load silmaril.yml / vault-viewer.yml from current directory."""
+    for name in ("silmaril.yml", "silmaril.yaml", "vault-viewer.yml", "vault-viewer.yaml"):
         p = Path(name)
         if p.exists():
             try:
@@ -1265,10 +1264,10 @@ def _apply_config(strict: bool = False):
 
 
 def main():
-    """Entry point for the ``vault-viewer`` console script."""
+    """Entry point for the ``silmaril`` console script."""
     global VAULT_ROOT, HOST, PORT, APP_TITLE
 
-    parser = argparse.ArgumentParser(description="Obsidian Vault Viewer")
+    parser = argparse.ArgumentParser(description="Silmaril — Obsidian vault viewer")
     parser.add_argument("--vault", type=str, default=None, help="Path to Obsidian vault (overrides VAULT_ROOT env)")
     parser.add_argument("--host", type=str, default=None, help="Bind host (default: 0.0.0.0)")
     parser.add_argument("--port", type=int, default=None, help="Bind port (default: 8000)")
@@ -1291,5 +1290,5 @@ def main():
     uvicorn.run(app, host=HOST, port=PORT)
 
 
-# When imported (e.g. uvicorn vault_viewer:app), resolve config from env vars
+# When imported (e.g. uvicorn silmaril:app), resolve config from env vars
 _apply_config()

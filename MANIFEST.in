@@ -1,5 +1,4 @@
 include LICENSE
 include README.md
-include README_RU.md
 include app.py
-recursive-include vault_viewer/static *
+recursive-include silmaril/static *

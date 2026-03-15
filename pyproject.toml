@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "obsidian-vault-viewer"
+name = "silmaril"
 version = "0.1.0"
 description = "Self-hosted, mobile-first web UI for browsing and editing Obsidian vaults"
 readme = "README.md"
@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 authors = [
     { name = "Daniil Merkulov", email = "bratishka.mipt@gmail.com" },
 ]
-keywords = ["obsidian", "vault", "viewer", "markdown", "notes"]
+keywords = ["obsidian", "vault", "viewer", "markdown", "notes", "self-hosted"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Framework :: FastAPI",
@@ -30,15 +30,15 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/MerkulovDaniil/vault-viewer"
-Repository = "https://github.com/MerkulovDaniil/vault-viewer"
+Homepage = "https://github.com/MerkulovDaniil/silmaril"
+Repository = "https://github.com/MerkulovDaniil/silmaril"
 
 [project.scripts]
-vault-viewer = "vault_viewer:main"
+silmaril = "silmaril:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["vault_viewer*"]
+include = ["silmaril*"]
 
 [tool.setuptools.package-data]
-vault_viewer = ["static/*"]
+silmaril = ["static/*"]
