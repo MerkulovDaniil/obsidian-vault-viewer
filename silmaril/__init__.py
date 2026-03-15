@@ -1307,7 +1307,16 @@ def render_base_view(fp: Path, file_path: str, active_tab: int = 0) -> HTMLRespo
         entries = entries[:limit]
 
     title = fp.stem
-    header = f'<h2 style="font-size:22px;font-weight:700;margin-bottom:4px">{_escape(title)}</h2>'
+
+    # Icon (same pattern as .md pages — clickable to edit)
+    icon_html = ""
+    if get_raw_icon(file_path):
+        icon_content = get_icon_html(file_path, "")
+        icon_html = f'<div class="page-icon" data-icon-path="{file_path}" style="font-size:48px;line-height:48px;margin-bottom:4px">{icon_content}</div>'
+    elif not CONFIG.get("readonly"):
+        icon_html = f'<div class="page-icon page-icon-add" data-icon-path="{file_path}"><span class="icon-add-btn">+</span></div>'
+
+    header = f'{icon_html}<h2 style="font-size:22px;font-weight:700;margin-bottom:4px">{_escape(title)}</h2>'
     limit_note = f" (showing {len(entries)})" if limit and limit < total_count else ""
     info = f'<div class="filter-info" style="margin-bottom:12px">{total_count} items{limit_note}</div>'
 
@@ -1333,7 +1342,8 @@ def render_base_view(fp: Path, file_path: str, active_tab: int = 0) -> HTMLRespo
         body = _render_view_body(entries)
 
     content = header + tabs_html + info + body
-    return layout(f"{title} — Base", content, file_path)
+    page_icon = get_raw_icon(file_path)
+    return layout(f"{title} — Base", content, file_path, page_icon=page_icon)
 
 
 @app.get("/base/{dir_path:path}", response_class=HTMLResponse)
