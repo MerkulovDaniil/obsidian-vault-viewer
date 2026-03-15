@@ -146,13 +146,13 @@ body {
 .cover img { width: 100%; height: 200px; object-fit: cover; display: block; }
 .page-icon {
     font-size: 78px; line-height: 1;
-    margin-top: -39px; margin-bottom: 4px;
     position: relative; z-index: 1;
+    top: -39px; margin-bottom: -35px;
     width: fit-content;
 }
 .page-icon .lucide-icon { width: 72px; height: 72px; }
 .page-icon img { width: 78px; height: 78px; object-fit: cover; border-radius: 8px; }
-.no-cover .page-icon { margin-top: 0; }
+.no-cover .page-icon { top: 0; margin-bottom: 4px; }
 
 /* === Badges === */
 .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
@@ -442,7 +442,7 @@ div.footnote li { margin: 4px 0; }
     .main { padding: 10px 14px 30px; max-width: 100vw; width: 100%; }
     .cover { width: 100vw; left: 50%; transform: translateX(-50%); }
     .cover img { height: 140px; }
-    .page-icon { font-size: 56px; line-height: 56px; margin-top: -28px; }
+    .page-icon { font-size: 56px; line-height: 56px; top: -28px; margin-bottom: -24px; }
     .page-icon .lucide-icon { width: 52px; height: 52px; }
     .md h1 { font-size: 1.5em; }
     .md h2 { font-size: 1.25em; }
