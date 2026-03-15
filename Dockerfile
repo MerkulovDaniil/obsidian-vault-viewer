@@ -8,5 +8,7 @@ COPY docs/ /docs/
 COPY playground.py .
 
 ENV RESET_DIR=/docs-pristine
+ENV VAULT_ROOT=/docs
+ENV VAULT_NAME=Silmaril
 
 CMD uvicorn playground:app --host 0.0.0.0 --port ${PORT:-8080}
