@@ -440,7 +440,7 @@ div.footnote li { margin: 4px 0; }
     .main { padding: 10px 14px 30px; max-width: 100vw; width: 100%; }
     .cover { width: 100vw; left: 50%; transform: translateX(-50%); }
     .cover img { height: 140px; }
-    .page-icon { font-size: 56px; line-height: 56px; margin-top: -30px; }
+    .page-icon { font-size: 56px; line-height: 56px; margin-top: -28px; }
     .page-icon .lucide-icon { width: 52px; height: 52px; }
     .md h1 { font-size: 1.5em; }
     .md h2 { font-size: 1.25em; }

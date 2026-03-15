@@ -1313,7 +1313,7 @@ def render_base_view(fp: Path, file_path: str, active_tab: int = 0) -> HTMLRespo
     has_icon = bool(get_raw_icon(file_path))
     wrapper_cls = "no-cover has-icon" if has_icon else "no-cover"
     page_title = f'<h1 style="font-size:2em;font-weight:700;margin:0 0 0.3em;font-family:var(--font)">{_escape(title)}</h1>'
-    header = f'<div class="{wrapper_cls}">{parts["icon"]}{page_title}</div>'
+    header = f'{parts["icon"]}<div class="{wrapper_cls}">{page_title}</div>'
     limit_note = f" (showing {len(entries)})" if limit and limit < total_count else ""
     info = f'<div class="filter-info" style="margin-bottom:12px">{total_count} items{limit_note}</div>'
 
@@ -1531,8 +1531,8 @@ async def _render_file(file_path: str, toast: str = "", tab: int = 0,
 
     content = (
         f'{parts["cover"]}'
-        f'<div class="{wrapper_cls}">'
         f'{parts["icon"]}'
+        f'<div class="{wrapper_cls}">'
         f'{page_title}'
         f'{parts["badges"]}'
         f'{parts["props"]}'
