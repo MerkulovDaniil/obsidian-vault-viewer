@@ -759,6 +759,28 @@ def _render_card_field(e: dict, field: str) -> str:
     return f'<span class="card-prop">{_escape(str(val)[:80])}</span>'
 
 
+def _extract_first_image(fp: Path) -> str:
+    """Extract the first image embed from a markdown file (for formula.first_image)."""
+    try:
+        text = fp.read_text(encoding="utf-8", errors="replace")
+    except Exception:
+        return ""
+    # Match ![...](path) and ![[path]]
+    for m in re.finditer(r'!\[.*?\]\((.+?)\)|!\[\[(.+?)(?:\|.+?)?\]\]', text):
+        ref = m.group(1) or m.group(2)
+        ref = ref.strip()
+        if any(ref.lower().endswith(ext) for ext in IMG_EXTS):
+            url = resolve_img(ref)
+            if not url:
+                # Try relative to file's directory
+                rel = fp.parent / ref
+                if rel.exists():
+                    url = f"/static/{rel.relative_to(VAULT_ROOT)}"
+            if url:
+                return url
+    return ""
+
+
 def render_base_cards(entries: list[dict], image_field: str = "", aspect: float = 0.5,
                       fields: list[str] = None, card_size: str = "",
                       image_fit: str = "cover") -> str:
@@ -778,16 +800,24 @@ def render_base_cards(entries: list[dict], image_field: str = "", aspect: float 
     for e in entries:
         cover = e["cover"]
         if not cover and image_field:
-            prop = image_field.replace("note.", "").replace("formula.", "")
-            if prop in e["meta"] and e["meta"][prop]:
-                cover = resolve_img(str(e["meta"][prop]))
+            if image_field.startswith("formula."):
+                # Evaluate formula — currently supports first_image
+                formula_name = image_field.replace("formula.", "")
+                if "first_image" in formula_name:
+                    fp = VAULT_ROOT / e["path"]
+                    cover = _extract_first_image(fp)
+            else:
+                prop = image_field.replace("note.", "")
+                if prop in e["meta"] and e["meta"][prop]:
+                    cover = resolve_img(str(e["meta"][prop]))
 
         if cover:
             ar_style = f"aspect-ratio:{1/aspect:.2f}" if aspect else "aspect-ratio:2"
             bg_size = "contain" if fit == "contain" else "cover"
             cover_html = f'<div class="card-cover" style="{ar_style};background-image:url(\'{cover}\');background-size:{bg_size};background-position:center;background-repeat:no-repeat"></div>'
         else:
-            cover_html = '<div class="card-cover card-cover-empty"><span>&#128196;</span></div>'
+            ar_style = f"aspect-ratio:{1/aspect:.2f}" if aspect else "aspect-ratio:2"
+            cover_html = f'<div class="card-cover card-cover-empty" style="{ar_style}"><span>&#128196;</span></div>'
 
         meta_html = ""
         for field in fields:
