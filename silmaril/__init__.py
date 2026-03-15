@@ -29,7 +29,6 @@ CONFIG = {
     "pinch_zoom": True,     # Allow pinch-to-zoom on mobile
     "readonly": False,      # Disable edit/delete
     "theme": "",            # Obsidian community theme name (e.g. "Things", "Dracula")
-    "bookmarks": [],        # List of bookmarked paths shown at sidebar top (e.g. ["projects/", "inbox.md"])
 }
 
 # --- Theme loading ---
@@ -973,20 +972,28 @@ JS = (Path(__file__).parent / "static" / "script.js").read_text()
 
 # --- HTML helpers ---
 
+def _load_bookmarks() -> list[dict]:
+    """Load bookmarks from .obsidian/bookmarks.json."""
+    bm_path = VAULT_ROOT / ".obsidian" / "bookmarks.json"
+    if not bm_path.exists():
+        return []
+    try:
+        import json
+        data = json.loads(bm_path.read_text(encoding="utf-8"))
+        return data.get("items", [])
+    except Exception:
+        return []
+
+
 def build_bookmarks_html(current_path: str = "") -> str:
-    """Render bookmarks section from config."""
-    bm_list = CONFIG.get("bookmarks", [])
+    """Render bookmarks section from .obsidian/bookmarks.json."""
+    bm_list = _load_bookmarks()
     if not bm_list:
         return ""
     items = ""
     for entry in bm_list:
-        if isinstance(entry, str):
-            path, label = entry, None
-        elif isinstance(entry, dict):
-            path = entry.get("path", "")
-            label = entry.get("name")
-        else:
-            continue
+        path = entry.get("path", "")
+        label = entry.get("title", "")
         if not path:
             continue
         fp = VAULT_ROOT / path
@@ -994,7 +1001,7 @@ def build_bookmarks_html(current_path: str = "") -> str:
             continue
         if not label:
             label = fp.stem if fp.is_file() else fp.name
-        raw = get_raw_icon(path) if fp.is_file() or fp.is_dir() else ""
+        raw = get_raw_icon(path)
         icon = get_icon_html(path, "") if raw else ""
         active = "active" if path == current_path else ""
         items += f'<a class="tree-item bm-item {active}" href="/{path}">{icon}{_escape(label)}</a>'
