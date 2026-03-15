@@ -119,7 +119,6 @@ body {
     max-width: var(--content-w);
     padding: 0 32px 40px;
     overflow-wrap: break-word; word-wrap: break-word; min-width: 0;
-    overflow-x: hidden;
 }
 .breadcrumb {
     font-size: 12px; color: var(--text2); margin-bottom: 4px;
@@ -175,7 +174,7 @@ body {
 .pv { color: var(--text); word-break: break-word; }
 
 /* === Markdown content === */
-.md { overflow-wrap: break-word; word-break: break-word; font-family: var(--serif); font-size: 16px; line-height: 1.5; }
+.md { overflow-wrap: break-word; word-break: break-word; font-family: var(--serif); font-size: 16px; line-height: 1.5; overflow-x: hidden; }
 .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { font-family: var(--font); font-weight: 700; }
 .md h1 { font-size: 1.875em; margin: 2em 0 0.5em; }
 .md h2 { font-size: 1.5em; margin: 1.4em 0 0.4em; }
@@ -231,6 +230,7 @@ body {
 .callout-fold { width: 18px; height: 18px; flex-shrink: 0; margin-left: auto; stroke: rgb(var(--callout-color)); transition: transform 0.15s; }
 details.callout > summary { cursor: pointer; list-style: none; }
 details.callout > summary::-webkit-details-marker { display: none; }
+details.callout > summary::marker { display: none; content: ""; }
 details.callout[open] .callout-fold { transform: rotate(90deg); }
 .callout-content { font-size: 14px; }
 .callout-content p { margin: 3px 0; }
@@ -428,7 +428,8 @@ div.footnote li { margin: 4px 0; }
     .md h2 { font-size: 1.25em; }
     .md pre { padding: 8px; font-size: 12px; }
     .gallery { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
-    .card-cover { max-height: 150px; }
+    .card-cover { max-height: none; }
+    .card-cover img { width: 100%; }
     .card-body { padding: 8px 10px; }
     .card-title { font-size: 13px; }
     .db-table { font-size: 12px; }
