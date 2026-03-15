@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 WORKDIR /app
 
-RUN pip install --no-cache-dir uv && uv pip install --system silmaril
+RUN pip install --no-cache-dir uv && uv pip install --system silmaril>=0.1.1
 
 COPY docs/ /docs-pristine/
 COPY docs/ /docs/
