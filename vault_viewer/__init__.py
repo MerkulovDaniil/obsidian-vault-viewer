@@ -99,6 +99,41 @@ def get_icon_html(rel_path: str, fallback: str = "&#128196;") -> str:
     return f'<i data-lucide="{name}" class="lucide-icon"{style}></i>'
 
 
+def _save_icon(rel_path: str, icon: str, color: str = "", is_folder: bool = False):
+    """Save icon to Iconic plugin data.json."""
+    global _icon_cache
+    iconic_path = VAULT_ROOT / ".obsidian" / "plugins" / "iconic" / "data.json"
+    iconic_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        data = json.loads(iconic_path.read_text(encoding="utf-8")) if iconic_path.exists() else {}
+    except Exception:
+        data = {}
+    section = "folderIcons" if is_folder else "fileIcons"
+    if section not in data:
+        data[section] = {}
+    entry = {"icon": icon}
+    if color:
+        entry["color"] = color
+    data[section][rel_path] = entry
+    iconic_path.write_text(json.dumps(data, indent="\t", ensure_ascii=False), encoding="utf-8")
+    _icon_cache = None
+
+
+def _remove_icon(rel_path: str, is_folder: bool = False):
+    """Remove icon from Iconic plugin data.json."""
+    global _icon_cache
+    iconic_path = VAULT_ROOT / ".obsidian" / "plugins" / "iconic" / "data.json"
+    try:
+        data = json.loads(iconic_path.read_text(encoding="utf-8"))
+    except Exception:
+        return
+    section = "folderIcons" if is_folder else "fileIcons"
+    if section in data and rel_path in data[section]:
+        del data[section][rel_path]
+        iconic_path.write_text(json.dumps(data, indent="\t", ensure_ascii=False), encoding="utf-8")
+    _icon_cache = None
+
+
 # --- File tree ---
 
 def _is_hidden(rel: str) -> bool:
@@ -148,7 +183,7 @@ def render_embeds(text: str) -> str:
                 return f'<img src="{url}" alt="{_escape(target)}" loading="lazy" style="max-width:100%;border-radius:4px;">'
             return f'<em>[image not found: {_escape(target)}]</em>'
         # Non-image embed (note transclusion) — link to it
-        href = f"/view/{target}" if target.endswith(".md") else f"/view/{target}.md"
+        href = f"/{target}" if target.endswith(".md") else f"/{target}.md"
         return f'<a href="{href}" class="wikilink">&#128196; {_escape(target)}</a>'
     return re.sub(r'!\[\[([^\]|]+?)(?:\|[^\]]+?)?\]\]', replace_embed, text)
 
@@ -162,16 +197,16 @@ def _resolve_wikilink(target: str) -> str:
     # Exact path
     t = target if target.endswith(".md") else target + ".md"
     if (VAULT_ROOT / t).exists():
-        _wikilink_cache[target] = f"/view/{t}"
+        _wikilink_cache[target] = f"/{t}"
         return _wikilink_cache[target]
     # Search vault by filename
     name = Path(t).name
     for fp in VAULT_ROOT.rglob(name):
         rel = str(fp.relative_to(VAULT_ROOT))
-        _wikilink_cache[target] = f"/view/{rel}"
+        _wikilink_cache[target] = f"/{rel}"
         return _wikilink_cache[target]
     # Not found — link anyway
-    _wikilink_cache[target] = f"/view/{t}"
+    _wikilink_cache[target] = f"/{t}"
     return _wikilink_cache[target]
 
 
@@ -345,7 +380,9 @@ def get_page_parts(meta: dict, file_path: str = "") -> dict:
     # Icon from Iconic plugin (only if file actually has an icon assigned)
     if file_path and get_raw_icon(file_path):
         icon_html = get_icon_html(file_path, "")
-        result["icon"] = f'<div class="page-icon">{icon_html}</div>'
+        result["icon"] = f'<div class="page-icon" data-icon-path="{file_path}">{icon_html}</div>'
+    elif file_path and not CONFIG.get("readonly"):
+        result["icon"] = f'<div class="page-icon page-icon-add" data-icon-path="{file_path}"><span class="icon-add-btn">+</span></div>'
 
     # Badges
     badges = []
@@ -532,7 +569,7 @@ def render_base_cards(entries: list[dict], image_field: str = "", aspect: float 
             badges_html += f'<span class="tag">{t}</span>'
 
         card_icon = get_icon_html(e["path"], "")
-        cards += f'<div class="card"><a href="/view/{e["path"]}">{cover_html}<div class="card-body"><div class="card-title">{card_icon}{_escape(e["name"])}</div><div class="card-meta">{badges_html}</div></div></a></div>'
+        cards += f'<div class="card"><a href="/{e["path"]}">{cover_html}<div class="card-body"><div class="card-title">{card_icon}{_escape(e["name"])}</div><div class="card-meta">{badges_html}</div></div></a></div>'
     return f'<div class="gallery">{cards}</div>'
 
 
@@ -546,7 +583,7 @@ def render_base_table(entries: list[dict], columns: list[str] = None) -> str:
     ths = '<th>Name</th>' + "".join(f'<th>{_escape(c)}</th>' for c in cols)
     trs = ""
     for e in entries:
-        tds = f'<td><a href="/view/{e["path"]}">{_escape(e["name"])}</a></td>'
+        tds = f'<td><a href="/{e["path"]}">{_escape(e["name"])}</a></td>'
         for c in cols:
             if c == "status":
                 cell = "".join(f'<span class="badge badge-{status_color(str(s))}">{s}</span>' for s in e["status"])
@@ -625,7 +662,7 @@ def render_canvas_view(fp: Path, file_path: str) -> HTMLResponse:
         elif ntype == "file":
             fpath = n.get("file", "")
             fname = Path(fpath).stem
-            inner = f'<a href="/view/{fpath}" class="wikilink" style="font-weight:500">{_escape(fname)}</a>'
+            inner = f'<a href="/{fpath}" class="wikilink" style="font-weight:500">{_escape(fname)}</a>'
         elif ntype == "link":
             url = n.get("url", "")
             inner = f'<a href="{url}" target="_blank" style="word-break:break-all">{_escape(url)}</a>'
@@ -676,7 +713,7 @@ def build_tree_html(items: list[dict], depth: int = 0, current_path: str = "") -
             active = "active" if item["path"] == current_path else ""
             fallback = "&#127912;" if item["name"].endswith(".canvas") else "&#128196;"
             file_icon = get_icon_html(item["path"], fallback)
-            html += f'<div class="tree-file"><a class="tree-item {active}" href="/view/{item["path"]}" style="{style}">{file_icon}{item["name"]}</a></div>'
+            html += f'<div class="tree-file"><a class="tree-item {active}" href="/{item["path"]}" style="{style}">{file_icon}{item["name"]}</a></div>'
     return html
 
 
@@ -694,19 +731,40 @@ def layout(title: str, content: str, current_path: str = "", toast: str = "", pa
             if i == len(parts) - 1:
                 crumbs.append(f"<span>{part}</span>")
             else:
-                crumbs.append(f'<a href="/view/{p}">{part}</a>')
+                crumbs.append(f'<a href="/{p}">{part}</a>')
         bc_inner = '<span class="sep">/</span>'.join(crumbs)
         # Add edit/raw buttons for files
         if not Path(current_path).suffix == "" and current_path:
             ext = Path(current_path).suffix.lower()
             if ext in (".md", ".txt", ".yaml", ".yml", ".json", ".csv", ".base"):
-                raw_btn = f'<a class="topbar-btn" href="/raw/{current_path}" title="Raw"><i data-lucide="file-code" style="width:14px;height:14px"></i></a>'
+                raw_btn = f'<a class="topbar-btn" href="/{current_path}?raw" title="Raw"><i data-lucide="file-code" style="width:14px;height:14px"></i></a>'
                 if CONFIG.get("readonly"):
                     edit_actions = raw_btn
                 else:
-                    edit_actions = f'<a class="topbar-btn" href="/edit/{current_path}" title="Edit"><i data-lucide="pencil" style="width:14px;height:14px"></i></a>{raw_btn}'
+                    edit_actions = f'<a class="topbar-btn" href="/{current_path}?edit" title="Edit"><i data-lucide="pencil" style="width:14px;height:14px"></i></a>{raw_btn}'
 
     toast_html = f'<div class="toast">{toast}</div>' if toast else ""
+
+    icon_picker_html = ""
+    if not CONFIG.get("readonly"):
+        icon_picker_html = """<div id="icon-picker-overlay"></div>
+<div id="icon-picker">
+<div class="icon-picker-header">
+<span class="icon-picker-title">Choose icon</span>
+<button class="icon-picker-close" id="icon-picker-close">&times;</button>
+</div>
+<div class="icon-picker-tabs">
+<button class="icon-picker-tab active" data-tab="emoji">Emoji</button>
+<button class="icon-picker-tab" data-tab="lucide">Lucide</button>
+</div>
+<div class="icon-picker-search-wrap"><input type="text" id="icon-picker-search" placeholder="Search icons..."></div>
+<div class="icon-picker-custom"><input type="text" id="icon-picker-custom" placeholder="Paste custom emoji..."><button id="icon-picker-custom-btn">Use</button></div>
+<div id="icon-picker-grid"></div>
+<div class="icon-picker-footer">
+<div class="icon-picker-color"><label>Color:</label><input type="color" id="icon-picker-color" value="#000000"><button id="icon-picker-color-reset">Reset</button></div>
+<button class="btn" id="icon-picker-remove" style="color:var(--red)">&#128465; Remove</button>
+</div>
+</div>"""
 
     viewport = "width=device-width, initial-scale=1.0" if CONFIG.get("pinch_zoom", True) else "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     # Favicon: page icon (emoji) > config favicon > default
@@ -756,6 +814,7 @@ def layout(title: str, content: str, current_path: str = "", toast: str = "", pa
 </main>
 </div>
 {toast_html}
+{icon_picker_html}
 <script>{JS}</script>
 </body>
 </html>""")
@@ -771,7 +830,7 @@ async def index():
         key=lambda f: f.stat().st_mtime, reverse=True
     )[:15]
     recent_html = "".join(
-        f'<a class="sr-item" style="padding:8px 0" href="/view/{f.relative_to(VAULT_ROOT)}">'
+        f'<a class="sr-item" style="padding:8px 0" href="/{f.relative_to(VAULT_ROOT)}">'
         f'<div style="font-weight:500">{f.stem}</div>'
         f'<div class="sr-path">{f.relative_to(VAULT_ROOT)}</div></a>'
         for f in recent
@@ -816,7 +875,7 @@ def render_base_view(fp: Path, file_path: str, active_tab: int = 0) -> HTMLRespo
     for i, v in enumerate(views):
         name = v.get("name", f"View {i+1}")
         active = "active" if i == active_tab else ""
-        tabs_html += f'<a class="view-tab {active}" href="/view/{file_path}?tab={i}">{_escape(name)}</a>'
+        tabs_html += f'<a class="view-tab {active}" href="/{file_path}?tab={i}">{_escape(name)}</a>'
     tabs_html += '</div>'
 
     # Active view
@@ -918,7 +977,7 @@ async def base_view(dir_path: str, view: str = Query("cards")):
                 badges_html += f'<span class="tag">{t}</span>'
 
             cards += f"""
-            <div class="card"><a href="/view/{e['path']}">
+            <div class="card"><a href="/{e['path']}">
                 {cover_html}
                 <div class="card-body">
                     <div class="card-title">{_escape(e['name'])}</div>
@@ -936,7 +995,7 @@ async def base_view(dir_path: str, view: str = Query("cards")):
                 status_html += f'<span class="badge badge-{c}">{s}</span>'
             tags_html = "".join(f'<span class="tag">{t}</span>' for t in e["tags"][:3])
             rows += f"""
-            <a class="db-row" href="/view/{e['path']}">
+            <a class="db-row" href="/{e['path']}">
                 <div class="db-row-title">{_escape(e['name'])}</div>
                 <div class="db-row-status">{status_html}</div>
                 <div class="db-row-tags">{tags_html}</div>
@@ -956,7 +1015,7 @@ async def base_view(dir_path: str, view: str = Query("cards")):
         ths = '<th>Name</th>' + "".join(f'<th>{_escape(c)}</th>' for c in cols)
         trs = ""
         for e in entries:
-            tds = f'<td><a href="/view/{e["path"]}">{_escape(e["name"])}</a></td>'
+            tds = f'<td><a href="/{e["path"]}">{_escape(e["name"])}</a></td>'
             for c in cols:
                 val = e["meta"].get(c, "")
                 if c == "status":
@@ -973,8 +1032,8 @@ async def base_view(dir_path: str, view: str = Query("cards")):
     return layout(f"{dp.name} — Base", content, dir_path)
 
 
-@app.get("/view/{file_path:path}", response_class=HTMLResponse)
-async def view_file(file_path: str, toast: str = "", tab: int = 0):
+async def _render_file(file_path: str, toast: str = "", tab: int = 0,
+                       edit: str = None, raw: str = None):
     fp = safe_path(file_path)
     if fp.is_dir():
         return RedirectResponse(f"/base/{file_path}?view=cards")
@@ -995,8 +1054,27 @@ async def view_file(file_path: str, toast: str = "", tab: int = 0):
         mime, _ = mimetypes.guess_type(str(fp))
         return Response(content=fp.read_bytes(), media_type=mime or "application/octet-stream")
 
-    raw = fp.read_text(encoding="utf-8", errors="replace")
-    post = frontmatter.loads(raw)
+    raw_text = fp.read_text(encoding="utf-8", errors="replace")
+
+    # ?raw → plain text
+    if raw is not None:
+        return Response(content=raw_text, media_type="text/plain; charset=utf-8")
+
+    # ?edit → editor
+    if edit is not None and not CONFIG.get("readonly"):
+        content = f"""
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <button class="btn" style="color:var(--red)" onclick="if(this.dataset.armed){{document.getElementById('df').submit()}}else{{this.textContent='Confirm delete';this.dataset.armed='1'}}" title="Delete">&#128465; Delete</button>
+            <button class="btn btn-primary" type="submit" form="ef">&#128190; Save</button>
+        </div>
+        <form id="ef" method="POST" action="/save/{file_path}">
+            <textarea class="edit-area" name="content">{_escape(raw_text)}</textarea>
+        </form>
+        <form id="df" method="POST" action="/delete/{file_path}" style="display:none"></form>"""
+        return layout(f"Edit: {fp.name}", content, file_path)
+
+    # Default: view
+    post = frontmatter.loads(raw_text)
     parts = get_page_parts(post.metadata, file_path)
 
     title = fp.stem
@@ -1023,26 +1101,8 @@ async def view_file(file_path: str, toast: str = "", tab: int = 0):
         f'</div>'
         f'<div class="md">{md_html}</div>'
     )
-    raw_icon = get_raw_icon(file_path)
-    return layout(fp.name, content, file_path, toast=toast, page_icon=raw_icon)
-
-
-@app.get("/edit/{file_path:path}", response_class=HTMLResponse)
-async def edit_file(file_path: str):
-    fp = safe_path(file_path)
-    if not fp.exists():
-        raise HTTPException(404, "File not found")
-    raw = fp.read_text(encoding="utf-8", errors="replace")
-    content = f"""
-    <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-        <button class="btn" style="color:var(--red)" onclick="if(this.dataset.armed){{document.getElementById('df').submit()}}else{{this.textContent='Confirm delete';this.dataset.armed='1'}}" title="Delete">&#128465; Delete</button>
-        <button class="btn btn-primary" type="submit" form="ef">&#128190; Save</button>
-    </div>
-    <form id="ef" method="POST" action="/save/{file_path}">
-        <textarea class="edit-area" name="content">{_escape(raw)}</textarea>
-    </form>
-    <form id="df" method="POST" action="/delete/{file_path}" style="display:none"></form>"""
-    return layout(f"Edit: {fp.name}", content, file_path)
+    page_icon = get_raw_icon(file_path)
+    return layout(fp.name, content, file_path, toast=toast, page_icon=page_icon)
 
 
 @app.post("/save/{file_path:path}")
@@ -1051,7 +1111,7 @@ async def save_file(file_path: str, content: str = Form(...)):
     if not fp.exists():
         raise HTTPException(404, "File not found")
     fp.write_text(content, encoding="utf-8")
-    return RedirectResponse(f"/view/{file_path}?toast=Saved", status_code=303)
+    return RedirectResponse(f"/{file_path}?toast=Saved", status_code=303)
 
 
 @app.post("/delete/{file_path:path}")
@@ -1061,16 +1121,7 @@ async def delete_file(file_path: str):
         raise HTTPException(404, "File not found")
     parent = str(fp.parent.relative_to(VAULT_ROOT))
     fp.unlink()
-    return RedirectResponse(f"/view/{parent}?toast=Deleted", status_code=303)
-
-
-@app.get("/raw/{file_path:path}")
-async def raw_file(file_path: str):
-    fp = safe_path(file_path)
-    if not fp.exists():
-        raise HTTPException(404, "File not found")
-    return Response(content=fp.read_text(encoding="utf-8", errors="replace"),
-                    media_type="text/plain; charset=utf-8")
+    return RedirectResponse(f"/{parent}?toast=Deleted", status_code=303)
 
 
 @app.get("/static/{file_path:path}")
@@ -1120,6 +1171,37 @@ async def search_api(q: str = ""):
             continue
     results.sort(key=lambda r: -r["score"])
     return JSONResponse([{"name": r["name"], "path": r["path"], "match": r["match"]} for r in results[:30]])
+
+
+@app.post("/api/icon/{file_path:path}")
+async def set_icon_api(file_path: str, request: Request):
+    if CONFIG.get("readonly"):
+        raise HTTPException(403, "Read-only mode")
+    body = await request.json()
+    icon = body.get("icon", "")
+    color = body.get("color", "")
+    if not icon:
+        raise HTTPException(400, "Icon required")
+    fp = safe_path(file_path)
+    _save_icon(file_path, icon, color, is_folder=fp.is_dir())
+    return JSONResponse({"ok": True})
+
+
+@app.delete("/api/icon/{file_path:path}")
+async def remove_icon_api(file_path: str):
+    if CONFIG.get("readonly"):
+        raise HTTPException(403, "Read-only mode")
+    fp = safe_path(file_path)
+    _remove_icon(file_path, is_folder=fp.is_dir())
+    return JSONResponse({"ok": True})
+
+
+# --- Catch-all: clean URLs (MUST be last route) ---
+
+@app.get("/{file_path:path}", response_class=HTMLResponse)
+async def clean_view(file_path: str, toast: str = "", tab: int = 0,
+                     edit: str = None, raw: str = None):
+    return await _render_file(file_path, toast, tab, edit, raw)
 
 
 def _load_config_file() -> dict:
