@@ -192,18 +192,21 @@ body {
 .md input[type="checkbox"] { margin-right: 6px; cursor: pointer; width: 16px; height: 16px; vertical-align: middle; accent-color: var(--accent); }
 .md li.task-item { list-style: none !important; margin-left: -1.5em; }
 
-/* === Callouts === */
-.callout { border-radius: 6px; padding: 12px 16px; margin: 1em 0; border-left: 4px solid; }
-.callout-title { font-family: var(--font); font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+/* === Callouts (Obsidian-native) === */
+.callout {
+    --callout-color: 8, 109, 221;
+    border-radius: 6px; padding: 12px 16px; margin: 1em 0;
+    border-left: 4px solid rgb(var(--callout-color));
+    background: rgba(var(--callout-color), 0.08);
+}
+.callout-title {
+    font-family: var(--font); font-weight: 600; font-size: 14px;
+    margin-bottom: 4px; display: flex; align-items: center; gap: 6px;
+    color: rgb(var(--callout-color));
+}
+.callout-lucide { width: 18px; height: 18px; flex-shrink: 0; stroke: rgb(var(--callout-color)); }
 .callout-body { font-size: 14px; }
 .callout-body p { margin: 3px 0; }
-.callout-note { border-color: var(--accent); background: #e8f0fe; }
-.callout-tip, .callout-hint { border-color: #0d9488; background: #e6f6f4; }
-.callout-warning, .callout-caution { border-color: var(--yellow); background: var(--yellow-bg); }
-.callout-danger, .callout-error { border-color: var(--red); background: var(--red-bg); }
-.callout-success, .callout-check, .callout-done { border-color: var(--green); background: var(--green-bg); }
-.callout-quote, .callout-cite { border-color: var(--gray); background: var(--bg2); }
-.callout-question { border-color: var(--yellow); background: var(--yellow-bg); }
 
 /* === Toolbar === */
 .toolbar { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }

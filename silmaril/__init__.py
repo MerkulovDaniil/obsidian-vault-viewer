@@ -228,14 +228,35 @@ def render_autolinks(text: str) -> str:
 
 
 def render_callouts(text: str) -> str:
-    icons = {
-        "note": "✎️", "tip": "💡", "hint": "💡",
-        "important": "💡", "info": "ℹ️",
-        "warning": "⚠️", "caution": "⚠️",
-        "danger": "⚡", "error": "⚡", "bug": "🐛",
-        "example": "📋", "quote": "❝", "cite": "❝",
-        "success": "✅", "check": "✅", "done": "✅",
-        "question": "❓", "todo": "☐",
+    # Obsidian-native: lucide icon + RGB color per callout type
+    CALLOUT_META = {
+        "note":     ("pencil",          "8, 109, 221"),
+        "abstract": ("clipboard-list",  "0, 191, 188"),
+        "summary":  ("clipboard-list",  "0, 191, 188"),
+        "tldr":     ("clipboard-list",  "0, 191, 188"),
+        "info":     ("info",            "8, 109, 221"),
+        "todo":     ("check-circle-2",  "8, 109, 221"),
+        "tip":      ("flame",           "0, 191, 188"),
+        "hint":     ("flame",           "0, 191, 188"),
+        "important":("flame",           "0, 191, 188"),
+        "success":  ("check",           "8, 185, 78"),
+        "check":    ("check",           "8, 185, 78"),
+        "done":     ("check",           "8, 185, 78"),
+        "question": ("help-circle",     "236, 117, 0"),
+        "help":     ("help-circle",     "236, 117, 0"),
+        "faq":      ("help-circle",     "236, 117, 0"),
+        "warning":  ("alert-triangle",  "236, 117, 0"),
+        "caution":  ("alert-triangle",  "236, 117, 0"),
+        "attention":("alert-triangle",  "236, 117, 0"),
+        "failure":  ("x",               "233, 49, 71"),
+        "fail":     ("x",               "233, 49, 71"),
+        "missing":  ("x",               "233, 49, 71"),
+        "danger":   ("zap",             "233, 49, 71"),
+        "error":    ("zap",             "233, 49, 71"),
+        "bug":      ("bug",             "233, 49, 71"),
+        "example":  ("list",            "120, 82, 238"),
+        "quote":    ("quote",           "158, 158, 158"),
+        "cite":     ("quote",           "158, 158, 158"),
     }
     lines = text.split("\n")
     result, body, c_type, c_title = [], [], "", ""
@@ -245,11 +266,13 @@ def render_callouts(text: str) -> str:
         nonlocal in_c, body
         if not in_c:
             return
-        icon = icons.get(c_type.lower(), "📝")
+        meta = CALLOUT_META.get(c_type.lower(), ("pencil", "8, 109, 221"))
+        icon_html = f'<i data-lucide="{meta[0]}" class="callout-lucide"></i>'
+        color = meta[1]
         bhtml = markdown.markdown("\n".join(body), extensions=['tables', 'fenced_code', 'sane_lists'])
         result.append(
-            f'<div class="callout callout-{c_type.lower()}">'
-            f'<div class="callout-title">{icon} {c_title or c_type.capitalize()}</div>'
+            f'<div class="callout" style="--callout-color: {color};">'
+            f'<div class="callout-title">{icon_html} {c_title or c_type.capitalize()}</div>'
             f'<div class="callout-body">{bhtml}</div></div>')
         in_c = False
         body = []
