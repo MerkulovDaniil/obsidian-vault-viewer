@@ -784,7 +784,11 @@ def render_base_cards(entries: list[dict], image_field: str = "", aspect: float 
 
         if cover:
             ar_style = f"aspect-ratio:{1/aspect:.2f}" if aspect else "aspect-ratio:2"
-            cover_html = f'<div class="card-cover" style="{ar_style}"><img src="{cover}" loading="lazy" style="object-fit:{fit}"></div>'
+            cover_html = (
+                f'<div class="card-cover" style="{ar_style};overflow:hidden">'
+                f'<img src="{cover}" loading="lazy" style="width:100%;height:100%;object-fit:{fit};display:block">'
+                f'</div>'
+            )
         else:
             cover_html = '<div class="card-cover card-cover-empty"><span>&#128196;</span></div>'
 
