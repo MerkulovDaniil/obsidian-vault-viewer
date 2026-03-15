@@ -1105,11 +1105,11 @@ def layout(title: str, content: str, current_path: str = "", toast: str = "", pa
         if not Path(current_path).suffix == "" and current_path:
             ext = Path(current_path).suffix.lower()
             if ext in (".md", ".txt", ".yaml", ".yml", ".json", ".csv", ".base"):
-                raw_btn = f'<a class="topbar-btn" href="/{current_path}?raw" title="Raw"><i data-lucide="file-code" style="width:14px;height:14px"></i></a>'
+                raw_btn = f'<a class="path-header-btn" href="/{current_path}?raw" title="Raw"><i data-lucide="file-code" style="width:14px;height:14px"></i></a>'
                 if CONFIG.get("readonly"):
                     edit_actions = raw_btn
                 else:
-                    edit_actions = f'<a class="topbar-btn" href="/{current_path}?edit" title="Edit"><i data-lucide="pencil" style="width:14px;height:14px"></i></a>{raw_btn}'
+                    edit_actions = f'<a class="path-header-btn" href="/{current_path}?edit" title="Edit"><i data-lucide="pencil" style="width:14px;height:14px"></i></a>{raw_btn}'
 
     toast_html = f'<div class="toast">{toast}</div>' if toast else ""
 
@@ -1150,6 +1150,9 @@ def layout(title: str, content: str, current_path: str = "", toast: str = "", pa
     custom_css = f'<style>{CONFIG["custom_css"]}</style>' if CONFIG.get("custom_css") else ""
     custom_head = CONFIG.get("custom_head", "")
 
+    search_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>'
+    hamburger_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="2" width="22" height="20" rx="4"></rect><rect x="4" y="5" width="2" height="14" rx="2" fill="currentColor"></rect></svg>'
+
     return HTMLResponse(f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1168,25 +1171,31 @@ def layout(title: str, content: str, current_path: str = "", toast: str = "", pa
 </head>
 <body>
 <div class="overlay"></div>
+<div class="path-header">
+    <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle sidebar">{hamburger_svg}</button>
+    <div class="path-header-bc">{bc_inner}</div>
+    <div class="path-header-actions">
+        <div class="search-container">
+            <button class="search-btn" id="search-toggle">{search_svg}</button>
+            <input type="text" class="search-input" id="search-input" placeholder="Search..." autocomplete="off">
+            <div class="search-dropdown" id="search-dropdown"></div>
+        </div>
+        {edit_actions}
+    </div>
+</div>
 <nav class="sidebar">
     <div class="sidebar-hdr"><a href="/">&#128218; {APP_TITLE}</a></div>
-    <div class="sidebar-search"><input type="text" id="sidebar-search" placeholder="Search..." autocomplete="off"></div>
-    <div class="search-results"></div>
     {bookmarks_html}
     <div class="tree">{tree_html}</div>
 </nav>
 <div class="main-wrapper">
 <main class="main">
-    <div class="topbar">
-        <button class="topbar-toggle" id="sidebar-toggle" title="Toggle sidebar"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="2" width="22" height="20" rx="4"></rect><rect x="4" y="5" width="2" height="14" rx="2" fill="currentColor"></rect></svg></button>
-        <div class="topbar-bc">{bc_inner}</div>
-        <div class="topbar-actions">{edit_actions}</div>
-    </div>
     {content}
 </main>
 </div>
 {toast_html}
 {icon_picker_html}
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
 <script>{JS}</script>
 </body>
 </html>""")
@@ -1632,6 +1641,34 @@ async def remove_icon_api(file_path: str):
     fp = safe_path(file_path)
     _remove_icon(file_path, is_folder=fp.is_dir())
     return JSONResponse({"ok": True})
+
+
+@app.get("/api/search-index")
+async def search_index():
+    """Return search index for client-side Fuse.js search."""
+    entries = []
+    for fp in VAULT_ROOT.rglob("*"):
+        if fp.name.startswith(".") or not fp.is_file():
+            continue
+        rel = str(fp.relative_to(VAULT_ROOT))
+        if _is_hidden(rel):
+            continue
+        if fp.suffix.lower() not in (".md", ".base", ".canvas"):
+            continue
+        title = fp.stem
+        content = ""
+        try:
+            text = fp.read_text(encoding="utf-8", errors="replace")[:500]
+            # Strip frontmatter
+            if text.startswith("---"):
+                end = text.find("---", 3)
+                if end > 0:
+                    text = text[end+3:]
+            content = text.strip()[:200]
+        except Exception:
+            pass
+        entries.append({"title": title, "path": rel, "content": content})
+    return JSONResponse(entries)
 
 
 # --- Catch-all: clean URLs (MUST be last route) ---

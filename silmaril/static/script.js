@@ -1,82 +1,99 @@
 // Tree toggle
 document.addEventListener('click', function(e) {
-    const item = e.target.closest('.tree-dir > .tree-item');
+    var item = e.target.closest('.tree-dir > .tree-item');
     if (item) { e.preventDefault(); item.parentElement.classList.toggle('open'); }
 });
 
-// Sidebar toggle
-const menuBtn = document.getElementById('sidebar-toggle');
-const sidebar = document.querySelector('.sidebar');
-const overlay = document.querySelector('.overlay');
-const isMobile = () => window.innerWidth <= 768;
-function toggleMenu(open) {
-    if (isMobile()) {
-        const o = open !== undefined ? open : !sidebar.classList.contains('open');
-        sidebar.classList.toggle('open', o);
-        overlay.classList.toggle('open', o);
-        document.body.style.overflow = o ? 'hidden' : '';
-    } else {
-        const hidden = sidebar.classList.toggle('hidden');
-        document.querySelector('.main-wrapper').style.marginLeft = hidden ? '0' : '';
-    }
-}
-if (menuBtn) {
-    menuBtn.addEventListener('click', () => toggleMenu());
-    overlay.addEventListener('click', () => toggleMenu(false));
-}
+// Sidebar toggle - always overlay mode
+document.getElementById('sidebar-toggle').addEventListener('click', function(e) {
+    e.stopPropagation();
+    document.querySelector('.sidebar').classList.toggle('open');
+    document.querySelector('.overlay').classList.toggle('open');
+});
+document.querySelector('.overlay').addEventListener('click', function() {
+    document.querySelector('.sidebar').classList.remove('open');
+    this.classList.remove('open');
+});
 
-// Search
-const si = document.getElementById('sidebar-search');
-if (si) {
-    let debounce;
-    si.addEventListener('input', function() {
-        clearTimeout(debounce);
-        const q = this.value.trim();
-        const items = document.querySelectorAll('.tree-file');
-        const dirs = document.querySelectorAll('.tree-dir');
-        if (!q) {
-            items.forEach(i => i.style.display = '');
-            dirs.forEach(d => { d.style.display = ''; d.classList.remove('open'); });
-            document.querySelector('.search-results').innerHTML = '';
-            return;
-        }
-        // Tree filter
-        const ql = q.toLowerCase();
-        items.forEach(i => {
-            i.style.display = i.querySelector('.tree-item').textContent.toLowerCase().includes(ql) ? '' : 'none';
-        });
-        dirs.forEach(d => {
-            const vis = d.querySelector('.tree-file:not([style*="display: none"])');
-            d.style.display = vis ? '' : 'none';
-            if (vis) d.classList.add('open');
-        });
-        // API search (debounced)
-        if (q.length >= 2) {
-            debounce = setTimeout(() => {
-                fetch('/api/search?q=' + encodeURIComponent(q))
-                    .then(r => r.json())
-                    .then(results => {
-                        const c = document.querySelector('.search-results');
-                        if (!results.length) { c.innerHTML = '<div style="padding:6px 8px;color:var(--text2);font-size:12px;">Nothing found</div>'; return; }
-                        c.innerHTML = results.slice(0, 15).map(r =>
-                            '<a class="sr-item" href="/' + encodeURIComponent(r.path) + '">' +
-                            '<div>' + r.name + '</div>' +
-                            '<div class="sr-path">' + r.path + '</div>' +
-                            (r.match ? '<div class="sr-match">...' + r.match + '...</div>' : '') + '</a>'
-                        ).join('');
-                    });
-            }, 200);
+// Close sidebar on nav click
+document.querySelectorAll('.sidebar a').forEach(function(a) {
+    a.addEventListener('click', function() {
+        document.querySelector('.sidebar').classList.remove('open');
+        document.querySelector('.overlay').classList.remove('open');
+    });
+});
+
+// Search (Fuse.js client-side)
+(function() {
+    var btn = document.getElementById('search-toggle');
+    var input = document.getElementById('search-input');
+    var dropdown = document.getElementById('search-dropdown');
+    if (!btn || !input || !dropdown) return;
+    var fuse = null;
+    var indexLoaded = false;
+
+    btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var open = input.classList.toggle('open');
+        if (open) {
+            input.focus();
+            if (!indexLoaded) loadIndex();
+        } else {
+            dropdown.classList.remove('open');
         }
     });
-}
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.search-container')) {
+            input.classList.remove('open');
+            dropdown.classList.remove('open');
+        }
+    });
+
+    async function loadIndex() {
+        try {
+            var res = await fetch('/api/search-index');
+            var data = await res.json();
+            fuse = new Fuse(data, {
+                keys: ['title', 'content'],
+                threshold: 0.3,
+                minMatchCharLength: 2,
+                ignoreLocation: true
+            });
+            indexLoaded = true;
+        } catch(e) { console.error('Search index failed:', e); }
+    }
+
+    input.addEventListener('input', function() {
+        var q = this.value.trim();
+        if (q.length < 2 || !fuse) { dropdown.classList.remove('open'); return; }
+        var results = fuse.search(q).slice(0, 8);
+        if (results.length === 0) {
+            dropdown.innerHTML = '<div class="search-item" style="color:var(--text2)">No results</div>';
+        } else {
+            dropdown.innerHTML = results.map(function(r) {
+                return '<a class="search-item" href="/' + r.item.path + '"><div>' + r.item.title + '</div><div class="search-item-path">' + r.item.path + '</div></a>';
+            }).join('');
+        }
+        dropdown.classList.add('open');
+    });
+
+    // Escape key closes search
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            input.classList.remove('open');
+            dropdown.classList.remove('open');
+        }
+    });
+})();
 
 // Tab in textarea
-const ea = document.querySelector('.edit-area');
+var ea = document.querySelector('.edit-area');
 if (ea) {
     ea.addEventListener('keydown', function(e) {
         if (e.key === 'Tab') {
             e.preventDefault();
-            const s = this.selectionStart, end = this.selectionEnd;
+            var s = this.selectionStart, end = this.selectionEnd;
             this.value = this.value.substring(0, s) + '    ' + this.value.substring(end);
             this.selectionStart = this.selectionEnd = s + 4;
         }
@@ -84,30 +101,25 @@ if (ea) {
     });
 }
 
-// Close sidebar on nav (mobile)
-document.querySelectorAll('.sidebar a').forEach(a => {
-    a.addEventListener('click', () => { if (window.innerWidth <= 768) toggleMenu(false); });
-});
-
 // Copy buttons on code blocks
 document.querySelectorAll('pre > code').forEach(function(block) {
-    const pre = block.parentNode;
+    var pre = block.parentNode;
     // Wrap pre in a container for sticky button
-    const wrap = document.createElement('div');
+    var wrap = document.createElement('div');
     wrap.style.cssText = 'position:relative;';
     pre.parentNode.insertBefore(wrap, pre);
     wrap.appendChild(pre);
-    const btn = document.createElement('button');
+    var btn = document.createElement('button');
     btn.className = 'copy-btn';
     btn.textContent = 'Copy';
     btn.style.cssText = 'position:absolute;top:6px;right:6px;padding:2px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:3px;cursor:pointer;color:var(--text2);opacity:0;transition:opacity 0.15s;z-index:1;';
     wrap.appendChild(btn);
-    wrap.addEventListener('mouseenter', () => btn.style.opacity = '1');
-    wrap.addEventListener('mouseleave', () => btn.style.opacity = '0');
-    btn.addEventListener('click', () => {
-        navigator.clipboard.writeText(block.textContent).then(() => {
+    wrap.addEventListener('mouseenter', function() { btn.style.opacity = '1'; });
+    wrap.addEventListener('mouseleave', function() { btn.style.opacity = '0'; });
+    btn.addEventListener('click', function() {
+        navigator.clipboard.writeText(block.textContent).then(function() {
             btn.textContent = 'Copied!';
-            setTimeout(() => btn.textContent = 'Copy', 1500);
+            setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
         });
     });
 });
