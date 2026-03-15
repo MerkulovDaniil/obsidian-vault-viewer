@@ -1308,15 +1308,12 @@ def render_base_view(fp: Path, file_path: str, active_tab: int = 0) -> HTMLRespo
 
     title = fp.stem
 
-    # Icon (same pattern as .md pages — clickable to edit)
-    icon_html = ""
-    if get_raw_icon(file_path):
-        icon_content = get_icon_html(file_path, "")
-        icon_html = f'<div class="page-icon" data-icon-path="{file_path}" style="font-size:48px;line-height:48px;margin-bottom:4px">{icon_content}</div>'
-    elif not CONFIG.get("readonly"):
-        icon_html = f'<div class="page-icon page-icon-add" data-icon-path="{file_path}"><span class="icon-add-btn">+</span></div>'
-
-    header = f'{icon_html}<h2 style="font-size:22px;font-weight:700;margin-bottom:4px">{_escape(title)}</h2>'
+    # Icon — same as regular .md pages
+    parts = get_page_parts({}, file_path)
+    has_icon = bool(get_raw_icon(file_path))
+    wrapper_cls = "no-cover has-icon" if has_icon else "no-cover"
+    page_title = f'<h1 style="font-size:2em;font-weight:700;margin:0 0 0.3em;font-family:var(--font)">{_escape(title)}</h1>'
+    header = f'<div class="{wrapper_cls}">{parts["icon"]}{page_title}</div>'
     limit_note = f" (showing {len(entries)})" if limit and limit < total_count else ""
     info = f'<div class="filter-info" style="margin-bottom:12px">{total_count} items{limit_note}</div>'
 
