@@ -145,10 +145,10 @@ body {
 }
 .cover img { width: 100%; height: 200px; object-fit: cover; display: block; }
 .page-icon {
-    font-size: 78px; line-height: 78px;
+    font-size: 78px; line-height: 1;
     margin-top: -42px; margin-bottom: 4px;
     position: relative; z-index: 1;
-    display: inline-block;
+    width: fit-content;
 }
 .page-icon .lucide-icon { width: 72px; height: 72px; }
 .page-icon img { width: 78px; height: 78px; object-fit: cover; border-radius: 8px; }
