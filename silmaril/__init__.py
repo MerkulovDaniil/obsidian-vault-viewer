@@ -642,12 +642,30 @@ def collect_base_entries(global_filters: dict, view_filters: dict = None) -> lis
     return entries
 
 
-def render_base_cards(entries: list[dict], image_field: str = "", aspect: float = 0.5) -> str:
-    """Render entries as gallery cards."""
+def _render_card_field(e: dict, field: str) -> str:
+    """Render a single field for a card, respecting field type."""
+    prop = field.replace("file.", "").replace("note.", "")
+    if prop in ("name", "file.name"):
+        return ""  # name is rendered separately as title
+    if prop == "tags":
+        return "".join(f'<span class="tag">{t}</span>' for t in e.get("tags", [])[:4])
+    if prop == "status":
+        return "".join(f'<span class="badge badge-{status_color(str(s))}">{s}</span>' for s in e.get("status", [])[:2])
+    # Generic frontmatter field
+    val = e["meta"].get(prop, "")
+    if not val:
+        return ""
+    return f'<span class="card-prop">{_escape(str(val)[:80])}</span>'
+
+
+def render_base_cards(entries: list[dict], image_field: str = "", aspect: float = 0.5,
+                      fields: list[str] = None) -> str:
+    """Render entries as gallery cards with fields from .base order."""
+    if not fields:
+        fields = ["tags", "status"]
     cards = ""
     for e in entries:
         cover = e["cover"]
-        # Try image field from .base config (e.g. "note.banner")
         if not cover and image_field:
             prop = image_field.replace("note.", "").replace("formula.", "")
             if prop in e["meta"] and e["meta"][prop]:
@@ -659,14 +677,14 @@ def render_base_cards(entries: list[dict], image_field: str = "", aspect: float 
         else:
             cover_html = '<div class="card-cover card-cover-empty"><span>&#128196;</span></div>'
 
-        badges_html = ""
-        for s in e["status"][:2]:
-            badges_html += f'<span class="badge badge-{status_color(str(s))}">{s}</span>'
-        for t in e["tags"][:3]:
-            badges_html += f'<span class="tag">{t}</span>'
+        meta_html = ""
+        for field in fields:
+            rendered = _render_card_field(e, field)
+            if rendered:
+                meta_html += f'<div class="card-field">{rendered}</div>'
 
         card_icon = get_icon_html(e["path"], "")
-        cards += f'<div class="card"><a href="/{e["path"]}">{cover_html}<div class="card-body"><div class="card-title">{card_icon}{_escape(e["name"])}</div><div class="card-meta">{badges_html}</div></div></a></div>'
+        cards += f'<div class="card"><a href="/{e["path"]}">{cover_html}<div class="card-body"><div class="card-title">{card_icon}{_escape(e["name"])}</div>{meta_html}</div></a></div>'
     return f'<div class="gallery">{cards}</div>'
 
 
@@ -1003,7 +1021,7 @@ def render_base_view(fp: Path, file_path: str, active_tab: int = 0) -> HTMLRespo
     info = f'<div class="filter-info" style="margin-bottom:12px">{len(entries)} items</div>'
 
     if view_type == "cards":
-        body = render_base_cards(entries, image_field, aspect)
+        body = render_base_cards(entries, image_field, aspect, fields=columns)
     else:
         body = render_base_table(entries, columns)
 

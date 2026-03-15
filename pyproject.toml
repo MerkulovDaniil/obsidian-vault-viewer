@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "silmaril"
-version = "0.2.4"
+version = "0.2.5"
 description = "Self-hosted, mobile-first web UI for browsing and editing Obsidian vaults"
 readme = "README.md"
 license = {text = "MIT"}

@@ -320,6 +320,8 @@ div.footnote li { margin: 4px 0; }
 .card-body { padding: 10px 12px; }
 .card-title { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
 .card-meta { font-size: 12px; color: var(--text2); display: flex; flex-wrap: wrap; gap: 4px; }
+.card-field { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.card-prop { font-size: 12px; color: var(--text2); }
 
 /* List view */
 .db-list { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
